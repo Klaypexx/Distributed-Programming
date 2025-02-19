@@ -1,86 +1,80 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Caching.Distributed;
-using StackExchange.Redis;
+using Valuator.Services;
 
-namespace Valuator.Pages;
-
-public class IndexModel : PageModel
+namespace Valuator.Pages
 {
-    private readonly ILogger<IndexModel> _logger;
-    private readonly IDistributedCache? _cache;
-    private readonly ConnectionMultiplexer _redis;
-
-    public IndexModel( ILogger<IndexModel> logger, IDistributedCache cache )
+    public class IndexModel : PageModel
     {
-        _logger = logger;
-        _cache = cache;
-        _redis = ConnectionMultiplexer.Connect("localhost:6379");
-    }
+        private readonly ILogger<IndexModel> _logger;
+        private readonly IRedisService _redisService;
 
-    public void OnGet()
-    {
-
-    }
-
-    public IActionResult OnPost( string text )
-    {
-        _logger.LogDebug(text);
-
-        string id = Guid.NewGuid().ToString();
-
-        string rankKey = "RANK-" + id;
-        double rank = CalculateRank(text);
-        _cache.SetString(rankKey, rank.ToString());
-
-        string similarityKey = "SIMILARITY-" + id;
-        double similarity = CheckSimilarity(text);
-        _cache.SetString(similarityKey, similarity.ToString());
-
-        string textKey = "TEXT-" + id;
-        _cache.SetString(textKey, text);
-
-        return Redirect($"summary?id={id}");
-    }
-
-    private static double CalculateRank( string text )
-    {
-        if (string.IsNullOrEmpty(text))
+        public IndexModel( ILogger<IndexModel> logger, IRedisService redisService )
         {
+            _logger = logger;
+            _redisService = redisService;
+        }
+
+        public void OnGet()
+        {
+        }
+
+        public IActionResult OnPost( string text )
+        {
+            _logger.LogDebug(text);
+
+            if (!String.IsNullOrEmpty(text))
+            {
+                string id = Guid.NewGuid().ToString();
+                string rankKey = "RANK-" + id;
+                double rank = CalculateRank(text);
+                _redisService.StringSet(rankKey, rank.ToString());
+
+                string similarityKey = "SIMILARITY-" + id;
+                double similarity = CheckSimilarity(text);
+                _redisService.StringSet(similarityKey, similarity.ToString());
+
+                string textKey = "TEXT-" + id;
+                _redisService.StringSet(textKey, text);
+
+                return Redirect($"summary?id={id}");
+            }
+            return Redirect("/");
+        }
+
+        private static double CalculateRank( string text )
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return 0;
+            }
+
+            int nonAlphabetic = text.Count(word => !char.IsLetter(word));
+            int totalCharacters = text.Length;
+
+            double rank = (double)nonAlphabetic / totalCharacters;
+            return Math.Round(rank, 1);
+        }
+
+        private int CheckSimilarity( string text )
+        {
+            List<string> keys = _redisService.GetAllKeys().ToList();
+
+            foreach (var key in keys)
+            {
+                var value = _redisService.StringGet(key);
+                if (value == null)
+                {
+                    continue;
+                }
+
+                if (text == value)
+                {
+                    return 1;
+                }
+            }
+
             return 0;
         }
-
-        int alphabeticCount = text.Count(c =>
-            (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= 'а' && c <= 'я') || (c >= 'А' && c <= 'Я'));
-
-        int totalCharacters = text.Length;
-        int nonAlphabeticCount = totalCharacters - alphabeticCount;
-
-        double rank = (double)nonAlphabeticCount / totalCharacters;
-
-        return Math.Round(rank, 1);
-    }
-
-    private int CheckSimilarity( string text )
-    {
-        var server = _redis.GetServer(_redis.GetEndPoints()[0]);
-        var keys = server.Keys(pattern: "TEXT-*");
-
-        foreach (var key in keys)
-        {
-            string value = _cache.GetString(key);
-            if (value == null)
-            {
-                continue;
-            }
-
-            if (value.Contains(text))
-            {
-                return 1; 
-            }
-        }
-
-        return 0;
     }
 }

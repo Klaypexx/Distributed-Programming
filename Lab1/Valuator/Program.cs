@@ -1,3 +1,5 @@
+using Valuator.Services;
+
 namespace Valuator;
 
 public class Program
@@ -9,13 +11,11 @@ public class Program
         // Add services to the container.
         builder.Services.AddRazorPages();
 
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.Configuration = builder.Configuration.GetConnectionString("RedisConn");
-        });
+        var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
+
+        builder.Services.AddSingleton<IRedisService>(provider => new RedisService(redisConnectionString));
 
         var app = builder.Build();
-
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Caching.Distributed;
+using Valuator.Services;
 
 namespace Valuator.Pages;
 public class SummaryModel : PageModel
 {
     private readonly ILogger<SummaryModel> _logger;
-    private readonly IDistributedCache? _cache;
+    private readonly IRedisService? _redisService;
 
-    public SummaryModel(ILogger<SummaryModel> logger, IDistributedCache cache)
+    public SummaryModel(ILogger<SummaryModel> logger, IRedisService redisService )
     {
         _logger = logger;
-        _cache = cache;
+        _redisService = redisService;
     }
 
     public double Rank { get; set; }
@@ -20,13 +20,13 @@ public class SummaryModel : PageModel
     {
         _logger.LogDebug(id);
 
-        string textedRank = _cache.GetString("RANK-" + id);
+        string textedRank = _redisService.StringGet("RANK-" + id);
         if (textedRank == null)
         {
             throw new ArgumentNullException(nameof(textedRank));
         }
 
-        string textedSimilarity = _cache.GetString("SIMILARITY-" + id);
+        string textedSimilarity = _redisService.StringGet("SIMILARITY-" + id);
         if (textedSimilarity == null)
         {
             throw new ArgumentNullException(nameof(textedSimilarity));
