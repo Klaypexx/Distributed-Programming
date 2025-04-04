@@ -8,23 +8,26 @@ namespace EventLogger.Services
     {
         private IConnection _connection;
         private IChannel _channel;
+        private readonly string _queueName;
+        private readonly string _exchangeName;
         private readonly ConnectionFactory _factory;
 
-        public ConsumerRabbitMQService( string hostName )
+        public ConsumerRabbitMQService( string hostName, string queueName, string exchangeName )
         {
             _factory = new ConnectionFactory { HostName = hostName };
+            _queueName = queueName;
+            _exchangeName = exchangeName;
         }
 
-        public async Task InitializeAsync( string exchangeName,
-            string queueName )
+        public async Task InitializeAsync()
         {
             _connection = await _factory.CreateConnectionAsync();
             _channel = await _connection.CreateChannelAsync();
 
-            await DeclareTopologyAsync( _channel, exchangeName, queueName );
+            await DeclareTopologyAsync(_channel, _exchangeName, _queueName);
         }
 
-        public async Task<string> RunConsumerAsync(string queueName)
+        public async Task<string> RunConsumerAsync()
         {
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += async ( _, eventArgs ) =>
@@ -36,7 +39,7 @@ namespace EventLogger.Services
                 await _channel.BasicAckAsync(eventArgs.DeliveryTag, false);
             };
 
-            return await _channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: consumer);
+            return await _channel.BasicConsumeAsync(queue: _queueName, autoAck: false, consumer: consumer);
         }
 
         public async Task StopConsumerAsync( string consumerTag )
@@ -46,7 +49,7 @@ namespace EventLogger.Services
             await _connection.CloseAsync();
         }
 
-        private static async Task DeclareTopologyAsync( IChannel channel, string exchangeName, string queueName)
+        private static async Task DeclareTopologyAsync( IChannel channel, string exchangeName, string queueName )
         {
 
             // Объявляем обменник для событий

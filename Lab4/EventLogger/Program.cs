@@ -10,10 +10,10 @@ namespace EventsLogger
 
         public static async Task Main( string[] args )
         {
-            var rabbitConsumerService = new ConsumerRabbitMQService(HostName);
+            var rabbitConsumerService = new ConsumerRabbitMQService(HostName, QueueName, ExchangeName);
 
-            await rabbitConsumerService.InitializeAsync(ExchangeName, QueueName);
-            string consumerTag = await rabbitConsumerService.RunConsumerAsync(QueueName);
+            await rabbitConsumerService.InitializeAsync();
+            string consumerTag = await rabbitConsumerService.RunConsumerAsync();
 
             Console.WriteLine("EventLogger started");
             Console.WriteLine("Press Enter to exit");

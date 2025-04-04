@@ -5,40 +5,45 @@ namespace RankCalculator.Services
 {
     public class ProducerRabbitMQService
     {
-
         private IConnection _connection;
         private IChannel _channel;
+        private readonly string _echangeName;
+        private readonly string _routingKey;
         private readonly ConnectionFactory _factory;
 
-        public ProducerRabbitMQService( string hostName )
+        private ProducerRabbitMQService() { }
+
+        public ProducerRabbitMQService( string hostName, string exchangeName, string routingKey )
         {
             _factory = new ConnectionFactory { HostName = hostName };
+            _echangeName = exchangeName;
+            _routingKey = routingKey;   
         }
 
-        public async Task InitializeAsync( string exchangeName )
+        public async Task InitializeAsync()
         {
             _connection = await _factory.CreateConnectionAsync();
             _channel = await _connection.CreateChannelAsync();
-            await DeclareTopologyAsync(_channel, exchangeName);
+            await DeclareTopologyAsync(_channel, _echangeName);
         }
 
-        public async Task SendMessage( string exchangeName, string routingKey, string id, double calculatedValue )
+        public async Task SendMessage( string id, double calculatedValue )
         {
             EventMessage message = new(id, calculatedValue);
 
-            Task produceTask = ProduceAsync(exchangeName, routingKey, message);
+            Task produceTask = ProduceAsync(message);
 
             await produceTask;
         }
 
-        private async Task ProduceAsync( string exchangeName, string routingKey, EventMessage message )
+        private async Task ProduceAsync( EventMessage message )
         {
             string serializedMessage = EventMessage.Serialize(message);
             byte[] body = Encoding.UTF8.GetBytes(serializedMessage);
 
             await _channel.BasicPublishAsync(
-                exchange: exchangeName,
-                routingKey: routingKey,
+                exchange: _echangeName,
+                routingKey: _routingKey,
                 mandatory: false,
                 body: body
             );
