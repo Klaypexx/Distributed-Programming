@@ -8,61 +8,49 @@ namespace Valuator.Pages
     {
         private readonly ILogger<IndexModel> _logger;
         private readonly IRedisService _redisService;
+        private readonly IRabbitMqService _rabbitMqService;
 
-        public IndexModel( ILogger<IndexModel> logger, IRedisService redisService )
+        public IndexModel( ILogger<IndexModel> logger, IRedisService redisService, IRabbitMqService rabbitMqService )
         {
             _logger = logger;
             _redisService = redisService;
+            _rabbitMqService = rabbitMqService;
         }
 
         public void OnGet()
         {
         }
 
-        public IActionResult OnPost( string text )
+        //загрузка Index до загрузки данных 
+        public async Task<IActionResult> OnPostAsync( string text )
         {
             _logger.LogDebug(text);
 
             if (!String.IsNullOrEmpty(text))
             {
                 string id = Guid.NewGuid().ToString();
-                string rankKey = "RANK-" + id;
-                double rank = CalculateRank(text);
-                _redisService.StringSet(rankKey, rank.ToString());
 
                 string similarityKey = "SIMILARITY-" + id;
-                double similarity = CheckSimilarity(text);
-                _redisService.StringSet(similarityKey, similarity.ToString());
+                double similarity = await CheckSimilarity(text);
+                await _redisService.StringSetAsync(similarityKey, similarity.ToString());
 
                 string textKey = "TEXT-" + id;
-                _redisService.StringSet(textKey, text);
+                await _redisService.StringSetAsync(textKey, text);
+
+                await _rabbitMqService.SendMessage(id);
 
                 return Redirect($"summary?id={id}");
             }
             return Redirect("/");
         }
 
-        private static double CalculateRank( string text )
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return 0;
-            }
-
-            int nonAlphabetic = text.Count(word => !char.IsLetter(word));
-            int totalCharacters = text.Length;
-
-            double rank = (double)nonAlphabetic / totalCharacters;
-            return Math.Round(rank, 1);
-        }
-
-        private int CheckSimilarity( string text )
+        private async Task<int> CheckSimilarity( string text )
         {
             List<string> keys = _redisService.GetAllKeys().ToList();
 
             foreach (var key in keys)
             {
-                var value = _redisService.StringGet(key);
+                var value = await _redisService.StringGetAsync(key);
                 if (value == null)
                 {
                     continue;

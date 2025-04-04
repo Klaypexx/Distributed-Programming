@@ -5,8 +5,10 @@ using System.Text;
 
 class Program
 {
-    private const string QueueName = "valuator.processing.rank";
-    private static ConnectionMultiplexer _redis = ConnectionMultiplexer.Connect("localhost:6379");
+    private const string QueueName = "valuator.processing.rank1";
+    private const string HostName = "localhost:6379";
+
+    private static ConnectionMultiplexer _redis = ConnectionMultiplexer.Connect(HostName);
 
     public static async Task Main( string[] args )
     {
@@ -19,6 +21,9 @@ class Program
 
         await DeclareTopologyAsync(channel);
         string consumerTag = await RunConsumer(channel);
+
+        Console.WriteLine("Press Enter to exit");
+        Console.ReadLine();
 
         await channel.BasicCancelAsync(consumerTag);
     }
