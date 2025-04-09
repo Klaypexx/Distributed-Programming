@@ -1,0 +1,29 @@
+﻿@page
+@model Valuator.Pages.SummaryModel
+@{
+}
+<p>Оценка содержания: <span id="Rank">@Model.Rank</span></p>
+<p>Плагиат: <span id="Similarity">@Model.Similarity</span></p>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5005/hub")
+            .build();
+
+        connection.on("ReceiveMessage", function(message)  {
+            console.log("Сообщение принято " + message);
+            console.log("@Model.Rank");
+            document.querySelector('#Rank').textContent = message;
+        });
+
+        connection.start()
+          .then(() => 
+          {
+              connection.invoke("Subscribe", "@Model.Id");
+              console.log("Подключение установлено");
+          })
+          .catch(err => console.error("Ошибка подключения:", err));
+    </script>
+}

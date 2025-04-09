@@ -8,14 +8,18 @@ namespace RankCalculator.Services
     {
         private IConnection _connection;
         private IChannel _channel;
-        private string _queueName;
-        private readonly string _exchangeName;
         private readonly ConnectionFactory _factory;
 
-        public ConsumerRabbitMQService( string hostName, string exchangeName )
+        private readonly string _queueName;
+        private readonly string _exchangeName;
+        private readonly string _routingKey;
+
+        public ConsumerRabbitMQService( string hostName, string exchangeName, string queueName, string routingKey )
         {
             _factory = new ConnectionFactory { HostName = hostName };
             _exchangeName = exchangeName;
+            _queueName = queueName;
+            _routingKey = routingKey;
         }
 
         public async Task InitializeAsync()
@@ -50,14 +54,18 @@ namespace RankCalculator.Services
         {
             await channel.ExchangeDeclareAsync(
                 exchange: exchangeName,
-                type: ExchangeType.Fanout
+                type: ExchangeType.Direct
             );
-            QueueDeclareOk queueDeclareResult = await channel.QueueDeclareAsync();
-            _queueName = queueDeclareResult.QueueName;
+            await channel.QueueDeclareAsync(
+                queue: _queueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false
+            );
             await channel.QueueBindAsync(
                 queue: _queueName,
                 exchange: exchangeName,
-                routingKey: string.Empty
+                routingKey: _routingKey
             );
         }
     }

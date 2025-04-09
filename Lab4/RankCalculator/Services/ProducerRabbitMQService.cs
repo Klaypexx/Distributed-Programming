@@ -7,9 +7,10 @@ namespace RankCalculator.Services
     {
         private IConnection _connection;
         private IChannel _channel;
+        private readonly ConnectionFactory _factory;
+
         private readonly string _echangeName;
         private readonly string _routingKey;
-        private readonly ConnectionFactory _factory;
 
         private ProducerRabbitMQService() { }
 

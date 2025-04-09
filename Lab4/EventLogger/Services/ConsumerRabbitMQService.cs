@@ -8,9 +8,10 @@ namespace EventLogger.Services
     {
         private IConnection _connection;
         private IChannel _channel;
+        private readonly ConnectionFactory _factory;
+
         private readonly string _queueName;
         private readonly string _exchangeName;
-        private readonly ConnectionFactory _factory;
 
         public ConsumerRabbitMQService( string hostName, string queueName, string exchangeName )
         {
